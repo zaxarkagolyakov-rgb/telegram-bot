@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code AI Neumorphic Calculator</title>
+    <style>
+        /* --- 1. CSS: Общие стили и Неоморфизм --- */
+        :root {
+            /* Цветовая схема Dark Neumorphism */
+            --bg-color: #2e3034;
+            --main-color: #3b3e44;
+            --text-color: #e0e0e0;
+            --button-color: #3b3e44;
+            --accent-color: #fa7268; /* Красный для операторов */
+            --shadow-light: #5a5d65;
+            --shadow-dark: #222427;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+        }
+
+        .calculator {
+            width: 350px;
+            padding: 25px;
+            border-radius: 30px;
+            background-color: var(--main-color);
+            /* Основной эффект неоморфизма для контейнера */
+            box-shadow: 10px 10px 20px var(--shadow-dark), 
+                        -10px -10px 20px var(--shadow-light);
+        }
+
+        /* Дисплей */
+        .display {
+            background-color: var(--main-color);
+            height: 100px;
+            margin-bottom: 25px;
+            border-radius: 20px;
+            padding: 10px 20px;
+            text-align: right;
+            font-size: 4em;
+            overflow: hidden;
+            /* Внутренний эффект "вдавленности" */
+            box-shadow: inset 5px 5px 10px var(--shadow-dark), 
+                        inset -5px -5px 10px var(--shadow-light);
+        }
+
+        /* Сетка кнопок */
+        .keys {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        /* Стилизация кнопок */
+        button {
+            height: 65px;
+            width: 100%;
+            border: none;
+            border-radius: 15px;
+            background-color: var(--button-color);
+            color: var(--text-color);
+            font-size: 1.5em;
+            cursor: pointer;
+            outline: none;
+            
+            /* Эффект кнопки по умолчанию (выпуклость) */
+            box-shadow: 6px 6px 12px var(--shadow-dark), 
+                        -6px -6px 12px var(--shadow-light);
+            transition: all 0.1s ease;
+        }
+
+        /* Кнопки операторов */
+        .operator {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        /* Кнопка "Равно" */
+        .equal {
+            background-color: var(--accent-color);
+            color: var(--text-color);
+            font-weight: bold;
+        }
+
+        /* Псевдокласс для эффекта нажатия (вдавленность) */
+        button:active {
+            box-shadow: inset 4px 4px 8px var(--shadow-dark), 
+                        inset -4px -4px 8px var(--shadow-light);
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calculator">
+        <div class="display" id="display">0</div>
+        
+        <div class="keys">
+            <button class="operator" data-action="clear">AC</button>
+            <button class="operator" data-action="negate">+/-</button>
+            <button class="operator" data-action="percent">%</button>
+            <button class="operator" data-action="operator" data-value="/">÷</button>
+
+            <button data-action="number" data-value="7">7</button>
+            <button data-action="number" data-value="8">8</button>
+            <button data-action="number" data-value="9">9</button>
+            <button class="operator" data-action="operator" data-value="*">×</button>
+
+            <button data-action="number" data-value="4">4</button>
+            <button data-action="number" data-value="5">5</button>
+            <button data-action="number" data-value="6">6</button>
+            <button class="operator" data-action="operator" data-value="-">-</button>
+
+            <button data-action="number" data-value="1">1</button>
+            <button data-action="number" data-value="2">2</button>
+            <button data-action="number" data-value="3">3</button>
+            <button class="operator" data-action="operator" data-value="+">+</button>
+
+            <button data-action="number" data-value="0">0</button>
+            <button data-action="decimal" data-value=".">.</button>
+            <button class="equal" data-action="calculate">=</button>
+        </div>
+    </div>
+
+    <script>
+        const display = document.getElementById('display');
+        const keys = document.querySelector('.keys');
+        let firstOperand = null;
+        let secondOperand = null;
+        let currentOperator = null;
+        let waitingForSecondOperand = false;
+
+        // Обработчик нажатия на кнопки
+        keys.addEventListener('click', (event) => {
+            if (!event.target.matches('button')) {
+                return;
+            }
+
+            const button = event.target;
+            const action = button.dataset.action;
+            const value = button.dataset.value || button.textContent;
+
+            switch (action) {
+                case 'number':
+                    inputNumber(value);
+                    break;
+                case 'decimal':
+                    inputDecimal(value);
+                    break;
+                case 'operator':
+                    handleOperator(value);
+                    break;
+                case 'calculate':
+                    calculate();
+                    break;
+                case 'clear':
+                    resetCalculator();
+                    break;
+                case 'negate':
+                    negateNumber();
+                    break;
+                case 'percent':
+                    calculatePercent();
+                    break;
+                default:
+                    return;
+            }
+
+            updateDisplay();
+        });
+
+        function inputNumber(number) {
+            if (waitingForSecondOperand === true) {
+                display.textContent = number;
+                waitingForSecondOperand = false;
+            } else {
+                display.textContent = display.textContent === '0' ? number : display.textContent + number;
+            }
+        }
+
+        function inputDecimal(dot) {
+            if (waitingForSecondOperand === true) {
+                display.textContent = '0.';
+                waitingForSecondOperand = false;
+                return;
+            }
+            if (!display.textContent.includes(dot)) {
+                display.textContent += dot;
+            }
+        }
+
+        function handleOperator(nextOperator) {
+            const inputValue = parseFloat(display.textContent);
+
+            if (currentOperator && waitingForSecondOperand) {
+                currentOperator = nextOperator;
+                return;
+            }
+
+            if (firstOperand === null) {
+                firstOperand = inputValue;
+            } else if (currentOperator) {
+                const result = performCalculation(firstOperand, inputValue, currentOperator);
+                display.textContent = String(result);
+                firstOperand = result;
+            }
+
+            waitingForSecondOperand = true;
+            currentOperator = nextOperator;
+        }
+
+        function performCalculation(operand1, operand2, operator) {
+            if (operator === '+') {
+                return operand1 + operand2;
+            } else if (operator === '-') {
+                return operand1 - operand2;
+            } else if (operator === '*') {
+                return operand1 * operand2;
+            } else if (operator === '/') {
+                return operand1 / operand2;
+            }
+            return operand2;
+        }
+
+        function calculate() {
+            if (currentOperator && !waitingForSecondOperand) {
+                secondOperand = parseFloat(display.textContent);
+                const result = performCalculation(firstOperand, secondOperand, currentOperator);
+                display.textContent = String(result);
+                firstOperand = result;
+                currentOperator = null;
+                waitingForSecondOperand = false;
+            }
+        }
+        
+        function negateNumber() {
+            const value = parseFloat(display.textContent);
+            display.textContent = String(-value);
+        }
+
+        function calculatePercent() {
+            const value = parseFloat(display.textContent);
+            display.textContent = String(value / 100);
+            waitingForSecondOperand = true;
+        }
+
+
+        function updateDisplay() {
+            // Ограничение длины числа на экране
+            if (display.textContent.length > 10) {
+                 display.textContent = parseFloat(display.textContent).toPrecision(8);
+            }
+        }
+
+        function resetCalculator() {
+            display.textContent = '0';
+            firstOperand = null;
+            secondOperand = null;
+            currentOperator = null;
+            waitingForSecondOperand = false;
+        }
+    </script>
+</body>
+</html>
